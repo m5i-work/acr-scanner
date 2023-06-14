@@ -27,7 +27,7 @@ A webhook is implemented in Go to scan images and check for Bicep files. The web
 
 Login to verify the registry works:
 
-    az acr login -r scannertestcr
+    az acr login -n scannertestcr
 
 ## Enable registry quarantine state
 
