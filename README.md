@@ -82,8 +82,9 @@ Next, we need to grant permissions to the App Service to pull images and toggle 
 1. Add a system-assigned identity for app service([doc](https://learn.microsoft.com/en-us/azure/app-service/overview-managed-identity?tabs=portal%2Chttp#add-a-system-assigned-identity)). Take a note of Object (principal) ID.
 1. In ACR registry, [add role assignment](https://learn.microsoft.com/en-us/azure/container-registry/container-registry-roles?tabs=azure-cli#assign-roles) for the identity. Required roles are `AcrQuarantineWriter` and `AcrPull`.
 1. Add an ACR webhook that calls App Service. The action is `quarantine`. Host of the uri is the same as App Service.
-    az acr webhook create -n scanner -r scannertestcr --uri https://scanner-webhook.azurewebsites.net/hook --actions quarantine
-
+   ```
+   az acr webhook create -n scanner -r scannertestcr --uri https://scanner-webhook.azurewebsites.net/hook --actions quarantine
+   ```
 
 ## Verify webhook works
 
@@ -122,7 +123,9 @@ Therefore, it is pullable:
 Check the following if webhook doesn't work:
 1. Check "Webhook" blade of ACR web portal, verify that webhook is called.
 1. Check if there's any error in webhook response. Upon success, the response should be like:
-    Enqueued scan task for scanner-test@sha256:c9680c500f2bd67a5e9b48083842f02c9380d61207d56e7be93313b889d41589
+   ```
+   Enqueued scan task for scanner-test@sha256:c9680c500f2bd67a5e9b48083842f02c9380d61207d56e7be93313b889d41589
+   ```
 1. Check App Service deployment log to find errors.
 1. Check App Service application log to find errors.
 
