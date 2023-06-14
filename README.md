@@ -71,6 +71,7 @@ Create an App Service hosting Go program in this project ([reference](https://le
 ```bash
 git clone https://github.com/m5i-work/acr-scanner.git
 cd acr-scanner
+sed -i "s/scannertestcr/${acr_name}/g" main.go
 webapp_name=acr-scanner
 az webapp up --runtime GO:1.19 --os linux --sku B1 --name ${webapp_name} -g ${group_name} --location "East US"
 ```
@@ -108,33 +109,44 @@ Next, we need to grant permissions to the App Service to pull images and toggle 
 
 First, let's push an OCI image manifest with a normal plain text file as layer:
 
-    echo "foo" > hi.txt
-    oras push scannertestcr.azurecr.io/scanner-test:v1 hi.txt
+```bash
+echo "foo" > hi.txt
+oras push ${acr_name}.azurecr.io/scanner-test:v1 hi.txt
+```
 
 Since this file is not a Bicep file, it gets quarantined:
 
-    $ oras manifest fetch scannertestcr.azurecr.io/scanner-test:hi1515
-    Error: failed to fetch the content of "scannertestcr.azurecr.io/scanner-test:v1": scannertestcr.azurecr.io/scanner-test:v1: not found
+```console
+$ oras manifest fetch ${acr_name}.azurecr.io/scanner-test:v1
+Error: failed to fetch the content of "scannertestcr.azurecr.io/scanner-test:v1": scannertestcr.azurecr.io/scanner-test:v1: not found
+```
 
 We can also check scanner logs on App Service to see what's happening:
 
-    Scanning image: scanner-test:sha256:65fefeccfc30b9fee4a8e484497ce0dd8b4c31c37d9234f1bfcf3ac2bc59066a
-    Stop scanning image, found non-Bicep file: {application/vnd.oci.image.layer.v1.tar sha256:d78931fcf2660108eec0d6674ecb4e02401b5256a6b5ee82527766ef6d198c67 8 [] map[org.opencontainers.image.title:hi.txt] [] <nil> }
+```log
+Scanning image: scanner-test:sha256:65fefeccfc30b9fee4a8e484497ce0dd8b4c31c37d9234f1bfcf3ac2bc59066a
+Stop scanning image, found non-Bicep file: {application/vnd.oci.image.layer.v1.tar sha256:d78931fcf2660108eec0d6674ecb4e02401b5256a6b5ee82527766ef6d198c67 8 [] map[org.opencontainers.image.title:hi.txt] [] <nil> }
+```
 
 Next, let's repeat the above with a Bicep file instead. There's a sample Bicep file in `samples`.
 
-    oras push scannertestcr.azurecr.io/scanner-test:v2 samples/foo.bicep
+```bash
+oras push ${acr_name}.azurecr.io/scanner-test:v2 samples/foo.bicep
+```
 
 We can find in scanner logs that this image is moved out of quarantine state:
 
-    Scanning image: scanner-test:sha256:cb8293487d5f197abf0bfc3e8cb88c47430681b711f1ae0444c48dea66470a8f
-    Quarantine flag cleared for: scanner-test:sha256:cb8293487d5f197abf0bfc3e8cb88c47430681b711f1ae0444c48dea66470a8f
+```log
+Scanning image: scanner-test:sha256:cb8293487d5f197abf0bfc3e8cb88c47430681b711f1ae0444c48dea66470a8f
+Quarantine flag cleared for: scanner-test:sha256:cb8293487d5f197abf0bfc3e8cb88c47430681b711f1ae0444c48dea66470a8f
+```
 
 Therefore, it is pullable:
 
-    $ oras manifest fetch scannertestcr.azurecr.io/scanner-test:v2
-    {"schemaVersion":2,"mediaType":"application/vnd.oci.image.manifest.v1+json","config":{"mediaType":"application/vnd.unknown.config.v1+json","digest":"sha256:44136fa355b3678a1146ad16f7e8649e94fb4fc21fe77e8310c060f61caaff8a","size":2},"layers":[{"mediaType":"application/vnd.oci.image.layer.v1.tar","digest":"sha256:bff6730639c5cce9a8d5550a709f444d90d746feedce59aec7b5d1072ff8ab2b","size":697,"annotations":{"org.opencontainers.image.title":"foo.bicep"}}],"annotations":{"org.opencontainers.image.created":"2023-06-14T07:22:11Z"}}
-
+```console
+$ oras manifest fetch ${acr_name}.azurecr.io/scanner-test:v2
+{"schemaVersion":2,"mediaType":"application/vnd.oci.image.manifest.v1+json","config":{"mediaType":"application/vnd.unknown.config.v1+json","digest":"sha256:44136fa355b3678a1146ad16f7e8649e94fb4fc21fe77e8310c060f61caaff8a","size":2},"layers":[{"mediaType":"application/vnd.oci.image.layer.v1.tar","digest":"sha256:bff6730639c5cce9a8d5550a709f444d90d746feedce59aec7b5d1072ff8ab2b","size":697,"annotations":{"org.opencontainers.image.title":"foo.bicep"}}],"annotations":{"org.opencontainers.image.created":"2023-06-14T07:22:11Z"}}
+```
 
 ## Troubleshooting
 
