@@ -22,43 +22,43 @@ A webhook is implemented in Go to scan images and check for Bicep files. The web
 
 ## Create Azure Container Registry
 
-    az group create --name myResourceGroup --location eastus
-    az acr create --resource-group myResourceGroup --name scannertestcr --sku Basic
+```bash
+group_name=myResourceGroup
+acr_name=scannertestcr
+az group create --name $group_name --location eastus
+az acr create --resource-group $group_name --name $acr_name --sku Premium
+```
 
 Login to verify the registry works:
 
-    az acr login -n scannertestcr
+```bash
+az acr login -n $acr_name -t -o tsv --query accessToken | oras login --password-stdin ${acr_name}.azurecr.io
+```
 
 ## Enable registry quarantine state
 
 Registry quarantine state can be checked by:
 
-    az acr show -n scannertestcr | jq -r ".policies.quarantinePolicy"
+```bash
+az acr show -n $acr_name -o tsv --query policies.quarantinePolicy
+```
 
-Enable quarantine state with [this API](https://docs.microsoft.com/en-us/rest/api/containerregistry/registries/update#policies). We can use the "Try it" tool on the doc page to auth & send request. The request body is:
+Enable quarantine state by
 
-```json
-{
-  "properties": {
-    "policies": {
-      "quarantinePolicy": {
-        "status": "enabled"
-      }
-    }
-  }
-}
+```bash
+az rest --method patch --url "https://management.azure.com$(az acr show -n $acr_name -o tsv --query id)?api-version=2023-01-01-preview" --body '{"properties":{"policies":{"quarantinePolicy":{"status":"enabled"}}}}'
 ```
 
 Verify quarantine works. Note that in the execution below, newly pushed image is quarantined.
 
-```sh
-$ oras push scannertestcr.azurecr.io/scanner-test:v1 hi.txt
+```console
+$ oras push ${acr_name}.azurecr.io/scanner-test:v1 hi.txt
 Exists    b5bb9d8014a0 hi.txt
-Pushed [registry] scannertestcr.azurecr.io/scanner-test:v1
+Pushed [registry] ${acr_name}.azurecr.io/scanner-test:v1
 Digest: sha256:d4129e7a956ed858fdfbe75a004b95c1b626048028f23915b79e10508c1359d7
 
-# Fetch with an identity that doesn't have quaratine role fails:
-$ oras manifest fetch scannertestcr.azurecr.io/scanner-test@sha256:d4129e7a956ed858fdfbe75a004b95c1b626048028f23915b79e10508c1359d7
+$ # Fetch with an identity that doesn't have quaratine role fails:
+$ oras manifest fetch ${acr_name}.azurecr.io/scanner-test@sha256:d4129e7a956ed858fdfbe75a004b95c1b626048028f23915b79e10508c1359d7
 Error: failed to fetch the content of "scannertestcr.azurecr.io/scanner-test@sha256:d4129e7a956ed858fdfbe75a004b95c1b626048028f23915b79e10508c1359d7": GET "https://scannertestcr.azurecr.io/v1/scanner-test/manifests/sha256:d4129e7a956ed858fdfbe75a004b95c1b626048028f23915b79e10508c1359d7": response status code 403: image quarantined: The image is quarantined.: map[]
 ```
 
