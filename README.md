@@ -46,7 +46,9 @@ az acr show -n $acr_name -o tsv --query policies.quarantinePolicy
 Enable quarantine state by
 
 ```bash
-az rest --method patch --url "https://management.azure.com$(az acr show -n $acr_name -o tsv --query id)?api-version=2023-01-01-preview" --body '{"properties":{"policies":{"quarantinePolicy":{"status":"enabled"}}}}'
+acr_id=$(az acr show -n $acr_name -o tsv --query id)
+acr_id=${acr_id%%[[:cntrl:]]}
+az rest --method patch --url "https://management.azure.com${acr_id}?api-version=2023-01-01-preview" --body '{"properties":{"policies":{"quarantinePolicy":{"status":"enabled"}}}}'
 ```
 
 Verify quarantine works. Note that in the execution below, newly pushed image is quarantined.
@@ -54,7 +56,7 @@ Verify quarantine works. Note that in the execution below, newly pushed image is
 ```console
 $ oras push ${acr_name}.azurecr.io/scanner-test:v1 hi.txt
 Exists    b5bb9d8014a0 hi.txt
-Pushed [registry] ${acr_name}.azurecr.io/scanner-test:v1
+Pushed [registry] scannertestcr.azurecr.io/scanner-test:v1
 Digest: sha256:d4129e7a956ed858fdfbe75a004b95c1b626048028f23915b79e10508c1359d7
 
 $ # Fetch with an identity that doesn't have quaratine role fails:
@@ -66,12 +68,14 @@ Error: failed to fetch the content of "scannertestcr.azurecr.io/scanner-test@sha
 
 Create an App Service hosting Go program in this project ([reference](https://learn.microsoft.com/en-us/azure/app-service/quickstart-golang)):
 
-    git clone git@github.com:m5i-work/acr-scanner.git
-    cd acr-scanner
-    az login
-    az webapp up --runtime GO:1.19 --os linux --sku B1 --name scanner-webhook --location "East US"
+```bash
+git clone https://github.com/m5i-work/acr-scanner.git
+cd acr-scanner
+webapp_name=acr-scanner
+az webapp up --runtime GO:1.19 --os linux --sku B1 --name ${webapp_name} -g ${group_name} --location "East US"
+```
 
-This creates an App Service instance of B1 (Basic) service plan, named `scanner-webhook` in `East US`. If an instance with the same name already exists in your subscription, it's reused.
+This creates an App Service instance of B1 (Basic) service plan, named `acr-scanner` in `East US`. If an instance with the same name already exists in your subscription, it's reused.
 
 For ease of debugging, follow [the instruction](https://aka.ms/linux-diagnostics) to turn on app logs. After that, logs can be watched from "Log stream" blade.
 
@@ -79,11 +83,25 @@ For ease of debugging, follow [the instruction](https://aka.ms/linux-diagnostics
 
 Next, we need to grant permissions to the App Service to pull images and toggle quarantine state.
 
-1. Add a system-assigned identity for app service([doc](https://learn.microsoft.com/en-us/azure/app-service/overview-managed-identity?tabs=portal%2Chttp#add-a-system-assigned-identity)). Take a note of Object (principal) ID.
+1. Add a system-assigned identity for app service
+
+    ```bash
+    az webapp identity assign -n $webapp_name -g $group_name --identities [system]
+    ```
+   
 1. In ACR registry, [add role assignment](https://learn.microsoft.com/en-us/azure/container-registry/container-registry-roles?tabs=azure-cli#assign-roles) for the identity. Required roles are `AcrQuarantineWriter` and `AcrPush`.
+
+    ```bash
+    webapp_mi_id=$(az webapp identity show -n $webapp_name -g $group_name -o tsv --query principalId)
+    webapp_mi_id=${webapp_mi_id%%[[:cntrl:]]}
+    az role assignment create --assignee-object-id $webapp_mi_id --assignee-principal-type ServicePrincipal --role AcrQuarantineWriter --scope $acr_id
+    az role assignment create --assignee-object-id $webapp_mi_id --assignee-principal-type ServicePrincipal --role AcrPush --scope $acr_id
+    ```
+
 1. Add an ACR webhook that calls App Service. The action is `quarantine`. Host of the uri is the same as App Service.
-   ```
-   az acr webhook create -n scanner -r scannertestcr --uri https://scanner-webhook.azurewebsites.net/hook --actions quarantine
+
+   ```bash
+   az acr webhook create -n scanner -r ${acr_name} --uri https://${webapp_name}.azurewebsites.net/hook --actions quarantine
    ```
 
 ## Verify webhook works
@@ -134,4 +152,6 @@ Check the following if webhook doesn't work:
 
 When no longer needed, you can use the `az group delete` command to remove the resource group, and all related resources:
 
-    az group delete --resource-group <resource-group-name>
+```bash
+az group delete --resource-group $group_name
+```
