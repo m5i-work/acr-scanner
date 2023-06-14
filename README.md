@@ -80,7 +80,7 @@ For ease of debugging, follow [the instruction](https://aka.ms/linux-diagnostics
 Next, we need to grant permissions to the App Service to pull images and toggle quarantine state.
 
 1. Add a system-assigned identity for app service([doc](https://learn.microsoft.com/en-us/azure/app-service/overview-managed-identity?tabs=portal%2Chttp#add-a-system-assigned-identity)). Take a note of Object (principal) ID.
-1. In ACR registry, [add role assignment](https://learn.microsoft.com/en-us/azure/container-registry/container-registry-roles?tabs=azure-cli#assign-roles) for the identity. Required roles are `AcrQuarantineWriter` and `AcrPull`.
+1. In ACR registry, [add role assignment](https://learn.microsoft.com/en-us/azure/container-registry/container-registry-roles?tabs=azure-cli#assign-roles) for the identity. Required roles are `AcrQuarantineWriter` and `AcrPush`.
 1. Add an ACR webhook that calls App Service. The action is `quarantine`. Host of the uri is the same as App Service.
    ```
    az acr webhook create -n scanner -r scannertestcr --uri https://scanner-webhook.azurewebsites.net/hook --actions quarantine
