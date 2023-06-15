@@ -1,0 +1,15 @@
+# Binaries for programs and plugins
+*.exe
+*.exe~
+*.dll
+*.so
+*.dylib
+
+
+
+
+/.vs
+/bin/Debug/net6.0
+/obj
+/Properties
+/ScannerFunc.csproj.user
