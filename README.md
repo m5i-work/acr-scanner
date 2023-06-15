@@ -23,8 +23,9 @@ A webhook is implemented in C# to scan images and check for Bicep files. The web
 ## Create Azure Container Registry
 
 ```bash
-group_name=myResourceGroup
-acr_name=scannertestcr
+let "rnd=$RANDOM"
+group_name="scannerdemo$rnd"
+acr_name="scannercr$rnd"
 location=eastus
 az group create --name $group_name --location $location
 az acr create --resource-group $group_name --name $acr_name --sku Premium
@@ -59,7 +60,7 @@ $ oras push ${acr_name}.azurecr.io/scanner-test:v1 hi.txt
 Exists    b5bb9d8014a0 hi.txt
 Pushed [registry] scannertestcr.azurecr.io/scanner-test:v1
 Digest: sha256:d4129e7a956ed858fdfbe75a004b95c1b626048028f23915b79e10508c1359d7
-
+echo 
 $ # Fetch with an identity that doesn't have quaratine role fails:
 $ oras manifest fetch ${acr_name}.azurecr.io/scanner-test@sha256:d4129e7a956ed858fdfbe75a004b95c1b626048028f23915b79e10508c1359d7
 Error: failed to fetch the content of "scannertestcr.azurecr.io/scanner-test@sha256:d4129e7a956ed858fdfbe75a004b95c1b626048028f23915b79e10508c1359d7": GET "https://scannertestcr.azurecr.io/v1/scanner-test/manifests/sha256:d4129e7a956ed858fdfbe75a004b95c1b626048028f23915b79e10508c1359d7": response status code 403: image quarantined: The image is quarantined.: map[]
@@ -70,25 +71,17 @@ Error: failed to fetch the content of "scannertestcr.azurecr.io/scanner-test@sha
 Create an Azure Function App to serve as webhook:
 
 ```bash
-app_name=scanner-func-app
-storage=funcappstorage
+app_name="scanner-func$rnd"
+storage="funcappstorage$rnd"
 
 # Create an Azure storage account in the resource group.
 az storage account create --name $storage --location "$location" --resource-group $group_name --sku "Standard_LRS"
 
 # Create a function app with source files deployed from the specified GitHub repo.
 az functionapp create --name $app_name --storage-account $storage --consumption-plan-location "$location" --resource-group $group_name \
-          --deployment-source-url https://github.com/m5i-work/acr-scanner \
-		  --deployment-source-branch main \
-		  --functions-version 4 --runtime dotnet
-```
-
-```bash
-git clone https://github.com/m5i-work/acr-scanner.git
-cd acr-scanner
-sed -i "s/scannertestcr/${acr_name}/g" scanner-func/Scanner.cs
-app_name=acr-scanner
-az webapp up --runtime GO:1.19 --os linux --sku B1 --name ${app_name} -g ${group_name} --location "East US"
+    --deployment-source-url https://github.com/m5i-work/acr-scanner \
+    --deployment-source-branch main \
+    --functions-version 4 --runtime dotnet
 ```
 
 ## Integrate Function App with ACR
@@ -113,7 +106,7 @@ Next, we need to grant permissions to the App Service to pull images and toggle 
 1. Add an ACR webhook that calls Function App. The action is `quarantine`. Host of the uri is the same as Function App.
 
    ```bash
-   app_code=$(az functionapp keys list --resource-group scanner --name acr-scanner-func -o tsv --query "functionKeys.default")
+   app_code=$(az functionapp keys list --resource-group $group_name --name $app_name -o tsv --query "functionKeys.default")
    app_code=${app_code%%[[:cntrl:]]}
    az acr webhook create -n scannerfunc -r ${acr_name} --uri https://${app_name}.azurewebsites.net/api/webhook?code=${app_code} --actions quarantine
    ```
