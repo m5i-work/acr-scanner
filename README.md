@@ -16,7 +16,7 @@ A webhook is implemented in C# to scan images and check for Bicep files. The web
 
 ## Prerequisites
 
-- An Azure subscription.
+- An Azure subscription
 - [Azure CLI](https://learn.microsoft.com/en-us/cli/azure/)
 - [Oras CLI](https://oras.land/docs/cli/installation)
 
@@ -60,7 +60,7 @@ $ oras push ${acr_name}.azurecr.io/scanner-test:v1 hi.txt
 Exists    b5bb9d8014a0 hi.txt
 Pushed [registry] scannertestcr.azurecr.io/scanner-test:v1
 Digest: sha256:d4129e7a956ed858fdfbe75a004b95c1b626048028f23915b79e10508c1359d7
-echo 
+
 $ # Fetch with an identity that doesn't have quaratine role fails:
 $ oras manifest fetch ${acr_name}.azurecr.io/scanner-test@sha256:d4129e7a956ed858fdfbe75a004b95c1b626048028f23915b79e10508c1359d7
 Error: failed to fetch the content of "scannertestcr.azurecr.io/scanner-test@sha256:d4129e7a956ed858fdfbe75a004b95c1b626048028f23915b79e10508c1359d7": GET "https://scannertestcr.azurecr.io/v1/scanner-test/manifests/sha256:d4129e7a956ed858fdfbe75a004b95c1b626048028f23915b79e10508c1359d7": response status code 403: image quarantined: The image is quarantined.: map[]
