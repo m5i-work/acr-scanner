@@ -24,12 +24,10 @@ namespace ScannerFunc
             [HttpTrigger(AuthorizationLevel.Function, "post", Route = null)] HttpRequest req,
             ILogger log)
         {
-            log.LogInformation("C# HTTP trigger function processed a request.");
-
             string requestBody = await new StreamReader(req.Body).ReadToEndAsync();
             Payload payload = JsonConvert.DeserializeObject<Payload>(requestBody);
 
-            if (payload == null || string.IsNullOrEmpty(payload.action))
+            if (string.IsNullOrEmpty(payload?.action))
             {
                 return new BadRequestObjectResult("Missing action in payload");
             }
@@ -41,10 +39,10 @@ namespace ScannerFunc
 
             if (string.IsNullOrEmpty(payload.target?.digest) || string.IsNullOrEmpty(payload.target?.repository) || string.IsNullOrEmpty(payload.request?.host))
             {
-                return new BadRequestObjectResult("Missing digest/repository in payload.target");
+                return new BadRequestObjectResult("Missing digest/repository/host in payload.");
             }
 
-            // FIXME: anti-pattern
+            // Fire-and-forget in a webhook trigger is anti-pattern. Should not be used in production code.
             var _ = Task.Run(async () => await ScanAsync(log, payload.request.host, payload.target.repository, payload.target.digest));
 
             string responseMessage = $"Enqueued scan task for {payload.target.repository}@{payload.target.digest}";
@@ -62,7 +60,7 @@ namespace ScannerFunc
 
                 foreach (var layer in manifest.Layers)
                 {
-                    // FIXME: do not download all to memory
+                    // Demo only, do not download all to memory in production code.
                     DownloadRegistryBlobResult blob = await client.DownloadBlobContentAsync(layer.Digest);
                     string content = blob.Content.ToString();
                     if (!ValidateBicep(content))
