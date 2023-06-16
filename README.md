@@ -11,6 +11,8 @@ A newly pushed image will go through the following flow:
 
 A webhook is implemented in C# to scan images and check for Bicep files. The webhook can be deployed to Azure Function App.
 
+![architecture](samples/architecture.svg "Architecture of scanner")
+
 
 # Try it out
 
