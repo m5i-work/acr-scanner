@@ -52,7 +52,7 @@ Enable quarantine state by
 ```bash
 acr_id=$(az acr show -n $acr_name -o tsv --query id)
 acr_id=${acr_id%%[[:cntrl:]]}
-az rest --method patch --url "https://management.azure.com${acr_id}?api-version=2023-01-01-preview" --body '{"properties":{"policies":{"quarantinePolicy":{"status":"enabled"}}}}'
+az resource update --ids $acr_id --set properties.policies.quarantinePolicy.status=enabled
 ```
 
 Verify quarantine works. Note that in the execution below, newly pushed image is quarantined.
