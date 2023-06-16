@@ -23,7 +23,7 @@ A webhook is implemented in C# to scan images and check for Bicep files. The web
 ## Create Azure Container Registry
 
 ```bash
-let "rnd=$RANDOM"
+rnd=$RANDOM
 group_name="scannerdemo$rnd"
 acr_name="scannercr$rnd"
 location=eastus
@@ -77,7 +77,7 @@ storage="funcappstorage$rnd"
 # Create an Azure storage account in the resource group.
 az storage account create --name $storage --location "$location" --resource-group $group_name --sku "Standard_LRS"
 
-# Create a function app with source files deployed from the specified GitHub repo.
+# Create a function app with source files deployed from this GitHub repo.
 az functionapp create --name $app_name --storage-account $storage --consumption-plan-location "$location" --resource-group $group_name \
     --deployment-source-url https://github.com/m5i-work/acr-scanner \
     --deployment-source-branch main \
@@ -86,7 +86,7 @@ az functionapp create --name $app_name --storage-account $storage --consumption-
 
 ## Integrate Function App with ACR
 
-Next, we need to grant permissions to the App Service to pull images and toggle quarantine state.
+Next, we need to grant permissions to the Function App to pull images and toggle quarantine state.
 
 1. Add a system-assigned identity for Function App
 
@@ -127,7 +127,7 @@ $ oras manifest fetch ${acr_name}.azurecr.io/hi:v1
 Error: failed to fetch the content of "scannertestcr.azurecr.io/hi:v1": scannertestcr.azurecr.io/scanner-test:v1: not found
 ```
 
-We can also check scanner logs on App Service to see what's happening:
+We can also check scanner logs on Function App to see what's happening:
 
 ```log
 Scanning image: hi:sha256:65fefeccfc30b9fee4a8e484497ce0dd8b4c31c37d9234f1bfcf3ac2bc59066a
